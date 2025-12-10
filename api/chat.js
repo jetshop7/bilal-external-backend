@@ -2,22 +2,22 @@ import express from "express";
 import bodyParser from "body-parser";
 import fetch from "node-fetch";
 
-// إنشاء Express
+// إنشاء تطبيق Express
 const app = express();
 app.use(bodyParser.json());
 
-// روابط Vercel ENV
+// روابط Workers من متغيرات البيئة في Vercel
 const EXECUTION_LAYER = process.env.EXECUTION_LAYER_URL;
 const SMART_LAYER = process.env.SMART_LAYER_URL;
 const MEMORY_BRIDGE = process.env.MEMORY_BRIDGE_URL;
 
-// مسار اختبار
+// مسار اختبار GET
 app.get("/", (req, res) => {
-  res.send("Bilal AI Backend is running.");
+  res.send("Bilal AI Backend is running /api/chat");
 });
 
-// API الرئيسي
-app.post("/chat", async (req, res) => {
+// مسار POST الرئيسي
+app.post("/", async (req, res) => {
   try {
     const { message } = req.body;
 
@@ -41,10 +41,11 @@ app.post("/chat", async (req, res) => {
       response: exec.output,
       memory_saved: exec.memory_saved || false
     });
+
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// التصدير الإجباري حتى يتعرف Vercel على الـ Route
+// مهم جداً — يجب تصدير Express كـ Serverless Function
 export default app;
