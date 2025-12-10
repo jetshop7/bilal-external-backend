@@ -2,11 +2,7 @@
   "version": 2,
   "functions": {
     "api/server.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "nodejs18.x"
     }
-  },
-  "routes": [
-    { "src": "/chat", "dest": "/api/server.js" },
-    { "src": "/(.*)", "dest": "/api/server.js" }
-  ]
+  }
 }
