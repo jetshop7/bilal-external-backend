@@ -1,43 +1,75 @@
-export default async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
+import express from "express";
+import bodyParser from "body-parser";
+import fetch from "node-fetch";
 
+const app = express();
+app.use(bodyParser.json());
+
+// هذه الروابط تأتي من Environment Variables داخل Vercel Dashboard
+const EXECUTION_LAYER = process.env.EXECUTION_LAYER_URL;
+const SMART_LAYER = process.env.SMART_LAYER_URL;
+const MEMORY_BRIDGE = process.env.MEMORY_BRIDGE_URL;
+
+app.get("/", (req, res) => {
+  res.send("Bilal AI Backend is running.");
+});
+
+app.post("/chat", async (req, res) => {
+  try {
     const { message } = req.body;
 
-    // Debug
-    console.log("Incoming message:", message);
-
-    const execUrl = process.env.EXECUTION_LAYER_URL;
-    const smartUrl = process.env.SMART_LAYER_URL;
-    const memoryUrl = process.env.MEMORY_BRIDGE_URL;
-
-    // 1️⃣ Smart Layer
-    const smart = await fetch(smartUrl, {
+    const smart = await fetch(SMART_LAYER, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message })
     }).then(r => r.json());
 
-    // 2️⃣ Execution Layer
-    const exec = await fetch(execUrl, {
+    const exec = await fetch(EXECUTION_LAYER, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "chat",
-        content: smart.cleaned || message,
-      }),
+        content: smart.cleaned || message
+      })
     }).then(r => r.json());
 
-    return res.status(200).json({
+    return res.json({
       status: "success",
-      response: exec.output || null,
-      memory_saved: exec.memory_saved || false,
+      response: exec.output,
+      memory_saved: exec.memory_saved || false
     });
-
   } catch (err) {
-    console.error("Error:", err);
     return res.status(500).json({ error: err.message });
   }
-}
+});
+
+app.post("/analyze", async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    const memory = await fetch(MEMORY_BRIDGE)
+      .then(r => r.json())
+      .catch(() => ({}));
+
+    const exec = await fetch(EXECUTION_LAYER, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "analysis",
+        content: text,
+        memory
+      })
+    }).then(r => r.json());
+
+    return res.json({
+      status: "analysis_complete",
+      result: exec.output,
+      memory_saved: exec.memory_saved
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// مهم جداً: جعل Express يعمل داخل Vercel Serverless
+export default app;
