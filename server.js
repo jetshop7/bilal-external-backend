@@ -1,22 +1,15 @@
 import express from "express";
 import bodyParser from "body-parser";
+import fetch from "node-fetch";
+import serverless from "serverless-http";
 
 const app = express();
 app.use(bodyParser.json());
 
-// Load env vars
 const EXECUTION_LAYER = process.env.EXECUTION_LAYER_URL;
 const SMART_LAYER = process.env.SMART_LAYER_URL;
 const MEMORY_BRIDGE = process.env.MEMORY_BRIDGE_URL;
 
-// DEBUG: Print env vars on Vercel logs
-console.log("DEBUG ENV VALUES:", {
-  EXECUTION_LAYER,
-  SMART_LAYER,
-  MEMORY_BRIDGE
-});
-
-// Chat endpoint
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -38,26 +31,21 @@ app.post("/chat", async (req, res) => {
 
     return res.json({
       status: "success",
-      response: exec.output || null,
+      response: exec.output,
       memory_saved: exec.memory_saved || false
     });
 
   } catch (err) {
-    console.error("CHAT ERROR:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Analyze endpoint
 app.post("/analyze", async (req, res) => {
   try {
     const { text } = req.body;
 
-    const memory = await fetch(MEMORY_BRIDGE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "read_memory" })
-    }).then(r => r.json())
+    const memory = await fetch(MEMORY_BRIDGE)
+      .then(r => r.json())
       .catch(() => ({}));
 
     const exec = await fetch(EXECUTION_LAYER, {
@@ -77,15 +65,13 @@ app.post("/analyze", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("ANALYZE ERROR:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Home route
 app.get("/", (req, res) => {
   res.send("Bilal AI Backend is running.");
 });
 
-// Start server
-app.listen(3000, () => console.log("Server running on port 3000"));
+// ❗ مهم جداً — Vercel يحتاج هذا السطر:
+export default serverless(app);
