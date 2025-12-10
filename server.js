@@ -10,6 +10,12 @@ const EXECUTION_LAYER = process.env.EXECUTION_LAYER_URL;
 const SMART_LAYER = process.env.SMART_LAYER_URL;
 const MEMORY_BRIDGE = process.env.MEMORY_BRIDGE_URL;
 
+// ---------------------- ROUTES -----------------------
+
+app.get("/", (req, res) => {
+  res.send("Bilal AI Backend is running.");
+});
+
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -31,7 +37,7 @@ app.post("/chat", async (req, res) => {
 
     return res.json({
       status: "success",
-      response: exec.output,
+      response: exec.output || null,
       memory_saved: exec.memory_saved || false
     });
 
@@ -40,38 +46,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-app.post("/analyze", async (req, res) => {
-  try {
-    const { text } = req.body;
+// ---------------------- EXPORT FOR VERCEL -----------------------
 
-    const memory = await fetch(MEMORY_BRIDGE)
-      .then(r => r.json())
-      .catch(() => ({}));
-
-    const exec = await fetch(EXECUTION_LAYER, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "analysis",
-        content: text,
-        memory
-      })
-    }).then(r => r.json());
-
-    return res.json({
-      status: "analysis_complete",
-      result: exec.output,
-      memory_saved: exec.memory_saved
-    });
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/", (req, res) => {
-  res.send("Bilal AI Backend is running.");
-});
-
-// ❗ مهم جداً — Vercel يحتاج هذا السطر:
-export default serverless(app);
+export const handler = serverless(app);
+export default handler;
