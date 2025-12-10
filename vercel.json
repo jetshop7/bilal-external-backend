@@ -1,9 +1,12 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "server.js", "use": "@vercel/node" }
-  ],
+  "functions": {
+    "api/server.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "routes": [
-    { "src": "/(.*)", "dest": "server.js" }
+    { "src": "/chat", "dest": "/api/server.js" },
+    { "src": "/(.*)", "dest": "/api/server.js" }
   ]
 }
