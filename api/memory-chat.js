@@ -80,6 +80,8 @@ export default async function handler(req, res) {
     // ===============================
     // 3️⃣ EXTRACT FINAL TEXT
     // ===============================
+    console.log("OpenAI Response:", openaiJson); // تصحيح لعرض استجابة OpenAI
+
     let finalText = "❌ لم يتم توليد رد.";
 
     const choices = openaiJson?.choices || [];
