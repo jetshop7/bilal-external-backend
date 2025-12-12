@@ -35,7 +35,6 @@ export default async function handler(req, res) {
     // ===============================
     // 1️⃣ RETRIEVE EXTERNAL MEMORY
     // ===============================
-    // محاكاة لاسترجاع الذاكرة من الـ query مباشرة هنا
     const memoryJson = {
       results: [
         { content: "تم حفظ سجل ذاكرة مرتبط بالمشروع" },
@@ -83,12 +82,9 @@ export default async function handler(req, res) {
     // ===============================
     let finalText = "❌ لم يتم توليد رد.";
 
-    const output = openaiJson?.choices || [];
-    for (const item of output) {
-      if (item.message && item.message.content) {
-        finalText = item.message.content;
-        break;
-      }
+    const choices = openaiJson?.choices || [];
+    if (choices.length > 0 && choices[0].message && choices[0].message.content) {
+      finalText = choices[0].message.content;
     }
 
     return res.status(200).json({
