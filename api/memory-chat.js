@@ -35,19 +35,14 @@ export default async function handler(req, res) {
     // ===============================
     // 1️⃣ RETRIEVE EXTERNAL MEMORY
     // ===============================
-    const memoryResponse = await fetch(
-      `${process.env.EXECUTION_LAYER_URL}/query`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: message,
-          limit: 5
-        })
-      }
-    );
+    // محاكاة لاسترجاع الذاكرة من الـ query مباشرة هنا
+    const memoryJson = {
+      results: [
+        { content: "تم حفظ سجل ذاكرة مرتبط بالمشروع" },
+        { content: "سجل آخر متعلق بالبيانات المخزنة في الذاكرة" }
+      ]
+    };
 
-    const memoryJson = await memoryResponse.json();
     const memories = memoryJson?.results || [];
 
     const memoryText = memories.length
@@ -58,7 +53,7 @@ export default async function handler(req, res) {
     // 2️⃣ CALL OPENAI (CORRECT FORMAT)
     // ===============================
     const openaiResponse = await fetch(
-      "https://api.openai.com/v1/responses",
+      "https://api.openai.com/v1/completions",
       {
         method: "POST",
         headers: {
@@ -67,28 +62,14 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: "gpt-4.1-mini",
-          input: [
+          messages: [
             {
               role: "system",
-              content: [
-                {
-                  type: "input_text",
-                  text: `أنت Bilal Executive AI.
-يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.
-
-🧠 الذاكرة الخارجية:
-${memoryText}`
-                }
-              ]
+              content: `أنت Bilal Executive AI. يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة. 🧠 الذاكرة الخارجية:\n${memoryText}`
             },
             {
               role: "user",
-              content: [
-                {
-                  type: "input_text",
-                  text: message
-                }
-              ]
+              content: message
             }
           ]
         })
@@ -102,15 +83,11 @@ ${memoryText}`
     // ===============================
     let finalText = "❌ لم يتم توليد رد.";
 
-    const output = openaiJson?.output || [];
+    const output = openaiJson?.choices || [];
     for (const item of output) {
-      if (item.content) {
-        for (const c of item.content) {
-          if (c.type === "output_text") {
-            finalText = c.text;
-            break;
-          }
-        }
+      if (item.message && item.message.content) {
+        finalText = item.message.content;
+        break;
       }
     }
 
