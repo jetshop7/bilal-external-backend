@@ -1,7 +1,15 @@
 import fetch from "node-fetch";
 
+/**
+ * B1 MEMORY-ENFORCED GPT ENDPOINT
+ * Always:
+ * 1) Query external memory
+ * 2) Inject memory into GPT context
+ * 3) Generate final answer
+ */
+
 export default async function handler(req, res) {
-  // السماح بالطلبات الخارجية (CORS)
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -10,11 +18,8 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // اختبار سريع
   if (req.method === "GET") {
-    return res
-      .status(200)
-      .send("✅ /api/memory-chat is running (B1 retrieval enforced)");
+    return res.status(200).send("✅ /api/memory-chat is running (B1 enforced)");
   }
 
   if (req.method !== "POST") {
@@ -23,12 +28,13 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body;
-
     if (!message) {
       return res.status(400).json({ error: "Missing message" });
     }
 
-    // 1️⃣ استرجاع الذاكرة من ai-execution-layer
+    // ===============================
+    // 1️⃣ RETRIEVE EXTERNAL MEMORY
+    // ===============================
     const memoryResponse = await fetch(
       `${process.env.EXECUTION_LAYER_URL}/query`,
       {
@@ -36,28 +42,28 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: message,
-          limit: 10
+          limit: 5
         })
       }
     );
 
-    const memoryData = await memoryResponse.json();
+    const memoryJson = await memoryResponse.json();
+    const memories = memoryJson?.results || [];
 
-    const memoryText =
-      memoryData.results && memoryData.results.length > 0
-        ? memoryData.results
-            .map((r, i) => `(${i + 1}) ${r.content}`)
-            .join("\n")
-        : "لا توجد ذاكرة مطابقة.";
+    const memoryText = memories.length
+      ? memories.map(m => `- ${m.content}`).join("\n")
+      : "لا توجد سجلات مطابقة في الذاكرة الخارجية.";
 
-    // 2️⃣ إرسال الطلب إلى OpenAI (Responses API الصحيح)
+    // ===============================
+    // 2️⃣ CALL OPENAI (CORRECT FORMAT)
+    // ===============================
     const openaiResponse = await fetch(
       "https://api.openai.com/v1/responses",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
         },
         body: JSON.stringify({
           model: "gpt-4.1-mini",
@@ -66,9 +72,12 @@ export default async function handler(req, res) {
               role: "system",
               content: [
                 {
-                  type: "output_text",
-                  text:
-                    "أنت Bilal Executive AI. استخدم فقط المعلومات القادمة من الذاكرة الخارجية للإجابة."
+                  type: "input_text",
+                  text: `أنت Bilal Executive AI.
+يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.
+
+🧠 الذاكرة الخارجية:
+${memoryText}`
                 }
               ]
             },
@@ -77,7 +86,7 @@ export default async function handler(req, res) {
               content: [
                 {
                   type: "input_text",
-                  text: `سؤال المستخدم:\n${message}\n\nالذاكرة الخارجية:\n${memoryText}`
+                  text: message
                 }
               ]
             }
@@ -86,19 +95,20 @@ export default async function handler(req, res) {
       }
     );
 
-    const openaiData = await openaiResponse.json();
+    const openaiJson = await openaiResponse.json();
 
-    // استخراج النص النهائي
+    // ===============================
+    // 3️⃣ EXTRACT FINAL TEXT
+    // ===============================
     let finalText = "❌ لم يتم توليد رد.";
 
-    if (openaiData.output) {
-      for (const item of openaiData.output) {
-        if (item.content) {
-          for (const c of item.content) {
-            if (c.type === "output_text") {
-              finalText = c.text;
-              break;
-            }
+    const output = openaiJson?.output || [];
+    for (const item of output) {
+      if (item.content) {
+        for (const c of item.content) {
+          if (c.type === "output_text") {
+            finalText = c.text;
+            break;
           }
         }
       }
@@ -106,9 +116,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       status: "success",
-      memory_used: memoryData.count || 0,
+      memory_used: memories.length,
       reply: finalText
     });
+
   } catch (err) {
     return res.status(500).json({
       status: "error",
