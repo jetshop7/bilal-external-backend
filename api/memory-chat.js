@@ -64,9 +64,35 @@ export default async function handler(req, res) {
       memories = [];
     }
 
-    const memoryText = memories.length
-      ? memories.map(m => `- ${m.content}`).join("\n")
-      : "لا توجد سجلات مطابقة في الذاكرة الخارجية.";
+let memoryText;
+
+if (memories.length > 0) {
+  memoryText = memories.map(m => `- ${m.content}`).join("\n");
+} else {
+  // Fallback: load last memories (sanity check)
+  try {
+    const fallbackRes = await fetch(
+      process.env.EXECUTION_LAYER_URL + "/query",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: "",
+          limit: 5
+        })
+      }
+    );
+
+    const fallbackData = await fallbackRes.json();
+    const fallbackMemories = fallbackData?.results || [];
+
+    memoryText = fallbackMemories.length
+      ? fallbackMemories.map(m => `- ${m.content}`).join("\n")
+      : "⚠️ الذاكرة الخارجية متصلة لكنها فارغة حاليًا.";
+  } catch {
+    memoryText = "⚠️ تعذر الوصول إلى الذاكرة الخارجية.";
+  }
+}
 
     // ===============================
     // 2️⃣ CALL OPENAI (CHAT COMPLETIONS – CORRECT)
