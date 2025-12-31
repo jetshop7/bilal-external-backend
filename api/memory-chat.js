@@ -9,7 +9,9 @@ import fetch from "node-fetch";
  */
 
 export default async function handler(req, res) {
+  // ===============================
   // CORS
+  // ===============================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -27,67 +29,87 @@ export default async function handler(req, res) {
   }
 
   try {
+    // ===============================
+    // INPUT
+    // ===============================
     const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Missing message" });
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Missing or invalid message" });
     }
 
     // ===============================
-    // 1️⃣ RETRIEVE EXTERNAL MEMORY
+    // 1️⃣ RETRIEVE EXTERNAL MEMORY (REAL)
     // ===============================
-https://github.com/jetshop7/bilal-external-backend/blob/main/api/memory-chat.js#L38-L43
+    let memories = [];
 
-    const memories = memoryJson?.results || [];
+    try {
+      const memoryRes = await fetch(
+        process.env.EXECUTION_LAYER_URL + "/query",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: message,
+            limit: 5
+          })
+        }
+      );
+
+      const memoryData = await memoryRes.json();
+      memories = Array.isArray(memoryData?.results)
+        ? memoryData.results
+        : [];
+    } catch (memoryErr) {
+      console.error("Memory query failed:", memoryErr.message);
+      memories = [];
+    }
 
     const memoryText = memories.length
       ? memories.map(m => `- ${m.content}`).join("\n")
       : "لا توجد سجلات مطابقة في الذاكرة الخارجية.";
 
     // ===============================
-    // 2️⃣ CALL OPENAI (CORRECT FORMAT)
+    // 2️⃣ CALL OPENAI (CHAT COMPLETIONS – CORRECT)
     // ===============================
-// ===============================
-// 2️⃣ CALL OPENAI (CHAT COMPLETIONS – CORRECT)
-// ===============================
-const openaiResponse = await fetch(
-  "https://api.openai.com/v1/chat/completions",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content: `أنت Bilal Executive AI. يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.\n\n🧠 الذاكرة الخارجية:\n${memoryText}`
+    const openaiResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
         },
-        {
-          role: "user",
-          content: message
-        }
-      ]
-    })
-  }
-);
-
-const openaiJson = await openaiResponse.json();
-
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                `أنت Bilal Executive AI.\n` +
+                `يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.\n\n` +
+                `🧠 الذاكرة الخارجية:\n${memoryText}`
+            },
+            {
+              role: "user",
+              content: message
+            }
+          ]
+        })
+      }
+    );
 
     const openaiJson = await openaiResponse.json();
 
     // ===============================
     // 3️⃣ EXTRACT FINAL TEXT
     // ===============================
-    console.log("OpenAI Response:", openaiJson); // إضافة السجل هنا
-
     let finalText = "❌ لم يتم توليد رد.";
 
-    const choices = openaiJson?.choices || [];
-    if (choices.length > 0 && choices[0].message && choices[0].message.content) {
-      finalText = choices[0].message.content;
+    if (
+      openaiJson?.choices &&
+      openaiJson.choices[0]?.message?.content
+    ) {
+      finalText = openaiJson.choices[0].message.content;
     }
 
     return res.status(200).json({
@@ -97,6 +119,7 @@ const openaiJson = await openaiResponse.json();
     });
 
   } catch (err) {
+    console.error("Fatal error:", err);
     return res.status(500).json({
       status: "error",
       message: err.message
