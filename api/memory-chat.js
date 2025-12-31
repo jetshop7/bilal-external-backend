@@ -143,7 +143,7 @@ if (memories.length > 0) {
 // ===============================
 try {
   await fetch(
-    process.env.EXECUTION_LAYER_URL,
+    process.env.EXECUTION_LAYER_URL + "/execute"
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
