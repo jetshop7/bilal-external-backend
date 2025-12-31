@@ -46,29 +46,35 @@ https://github.com/jetshop7/bilal-external-backend/blob/main/api/memory-chat.js#
     // ===============================
     // 2️⃣ CALL OPENAI (CORRECT FORMAT)
     // ===============================
-    const openaiResponse = await fetch(
-      "https://api.openai.com/v1/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+// ===============================
+// 2️⃣ CALL OPENAI (CHAT COMPLETIONS – CORRECT)
+// ===============================
+const openaiResponse = await fetch(
+  "https://api.openai.com/v1/chat/completions",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: `أنت Bilal Executive AI. يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.\n\n🧠 الذاكرة الخارجية:\n${memoryText}`
         },
-        body: JSON.stringify({
-          model: "gpt-4.1-mini",
-          messages: [
-            {
-              role: "system",
-              content: `أنت Bilal Executive AI. يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة. 🧠 الذاكرة الخارجية:\n${memoryText}`
-            },
-            {
-              role: "user",
-              content: message
-            }
-          ]
-        })
-      }
-    );
+        {
+          role: "user",
+          content: message
+        }
+      ]
+    })
+  }
+);
+
+const openaiJson = await openaiResponse.json();
+
 
     const openaiJson = await openaiResponse.json();
 
