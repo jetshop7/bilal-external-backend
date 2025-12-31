@@ -35,12 +35,7 @@ export default async function handler(req, res) {
     // ===============================
     // 1️⃣ RETRIEVE EXTERNAL MEMORY
     // ===============================
-    const memoryJson = {
-      results: [
-        { content: "تم حفظ سجل ذاكرة مرتبط بالمشروع" },
-        { content: "سجل آخر متعلق بالبيانات المخزنة في الذاكرة" }
-      ]
-    };
+https://github.com/jetshop7/bilal-external-backend/blob/main/api/memory-chat.js#L38-L43
 
     const memories = memoryJson?.results || [];
 
