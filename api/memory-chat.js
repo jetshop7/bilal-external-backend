@@ -138,6 +138,32 @@ if (memories.length > 0) {
       finalText = openaiJson.choices[0].message.content;
     }
 
+// ===============================
+// 4️⃣ AUTO-SAVE MEMORY (CHAT LOG)
+// ===============================
+try {
+  await fetch(
+    process.env.EXECUTION_LAYER_URL,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "chat",
+        content: message,
+        response: finalText,
+        metadata: {
+          source: "memory_chat_b1",
+          timestamp: new Date().toISOString()
+        }
+      })
+    }
+  );
+} catch (saveErr) {
+  console.error("Memory save failed:", saveErr.message);
+}
+
+
+    
     return res.status(200).json({
       status: "success",
       memory_used: memories.length,
