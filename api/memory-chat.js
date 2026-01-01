@@ -142,25 +142,30 @@ if (memories.length > 0) {
 // 4️⃣ AUTO-SAVE MEMORY (CHAT LOG)
 // ===============================
 try {
-await fetch(
-  process.env.EXECUTION_LAYER_URL + "/save",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      record: {
-        memory_type: "chat",
-        entity_type: "conversation",
-        status: "active",
-        content: message,
-        metadata: {
-          response: finalText,
-          source: "memory_chat_b1"
+  await fetch(
+    process.env.EXECUTION_LAYER_URL + "/save",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        record: {
+          memory_type: "chat",
+          entity_type: "conversation",
+          status: "active",
+          content: message,
+          metadata: {
+            response: finalText,
+            source: "memory_chat_b1",
+            timestamp: new Date().toISOString()
+          }
         }
-      }
-    })
-  }
-);
+      })
+    }
+  );
+} catch (saveErr) {
+  console.error("Memory save failed:", saveErr.message);
+}
+
 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
