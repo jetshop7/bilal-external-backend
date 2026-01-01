@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
     try {
       const memoryRes = await fetch(
-        `${process.env.EXECUTION_LAYER_URL}/query`,
+        `${process.env.CENTRAL_MEMORY_URL}/query`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
