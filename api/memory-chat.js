@@ -1,6 +1,6 @@
 /**
  * B1 MEMORY-ENFORCED GPT ENDPOINT
- * Phase 16 – FINAL
+ * Phase 16 – FINAL (Central Memory ONLY)
  * Vercel Serverless Compatible
  */
 
@@ -17,7 +17,9 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
-    return res.status(200).send("✅ /api/memory-chat is running (Phase 16)");
+    return res
+      .status(200)
+      .send("✅ /api/memory-chat is running (Phase 16 – Central Memory)");
   }
 
   if (req.method !== "POST") {
@@ -35,7 +37,7 @@ export default async function handler(req, res) {
     }
 
     // ===============================
-    // 1️⃣ QUERY EXTERNAL MEMORY
+    // 1️⃣ QUERY CENTRAL MEMORY
     // ===============================
     let memories = [];
 
@@ -101,10 +103,10 @@ export default async function handler(req, res) {
       "❌ لم يتم توليد رد.";
 
     // ===============================
-    // 3️⃣ SAVE CHAT TO MEMORY
+    // 3️⃣ SAVE CHAT TO CENTRAL MEMORY
     // ===============================
     try {
-      await fetch(`${process.env.EXECUTION_LAYER_URL}/save`, {
+      await fetch(`${process.env.CENTRAL_MEMORY_URL}/central-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,7 +118,7 @@ export default async function handler(req, res) {
             metadata: {
               response: finalText,
               source: "memory_chat_phase16",
-              timestamp: new Date().toISOString()
+              saved_at: new Date().toISOString()
             }
           }
         })
@@ -131,7 +133,6 @@ export default async function handler(req, res) {
       memory_used: memories.length,
       reply: finalText
     });
-
   } catch (err) {
     return res.status(500).json({
       status: "error",
