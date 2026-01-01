@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+
 
 /**
  * B1 MEMORY-ENFORCED GPT ENDPOINT
@@ -142,50 +142,27 @@ if (memories.length > 0) {
 // 4️⃣ AUTO-SAVE MEMORY (CHAT LOG)
 // ===============================
 try {
-  await fetch(
-    process.env.EXECUTION_LAYER_URL + "/save",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        record: {
-          memory_type: "chat",
-          entity_type: "conversation",
-          status: "active",
-          content: message,
-          metadata: {
-            response: finalText,
-            source: "memory_chat_b1",
-            timestamp: new Date().toISOString()
-          }
-        }
-      })
-    }
-  );
-} catch (saveErr) {
-  console.error("Memory save failed:", saveErr.message);
-}
-
-
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "chat",
+  await fetch(process.env.EXECUTION_LAYER_URL + "/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      record: {
+        memory_type: "chat",
+        entity_type: "conversation",
+        status: "active",
         content: message,
-        response: finalText,
         metadata: {
+          response: finalText,
           source: "memory_chat_b1",
           timestamp: new Date().toISOString()
         }
-      })
-    }
-  );
+      }
+    })
+  });
 } catch (saveErr) {
   console.error("Memory save failed:", saveErr.message);
 }
 
-
-
-    
     return res.status(200).json({
       status: "success",
       memory_used: memories.length,
