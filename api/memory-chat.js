@@ -48,7 +48,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            memory_type: "chat",
+            memory_type: "non_existing_type",
             limit: 5
           })
         }
