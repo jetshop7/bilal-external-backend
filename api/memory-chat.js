@@ -62,10 +62,21 @@ export default async function handler(req, res) {
       memories = [];
     }
 
+    // ===============================
+    // PHASE 16.2 — HARD MEMORY GUARD
+    // ===============================
+    if (!memories || memories.length === 0) {
+      return res.status(412).json({
+        status: "blocked",
+        reason: "NO_EXTERNAL_MEMORY",
+        message: "⛔ لا يمكن توليد إجابة بدون ذاكرة خارجية."
+      });
+    }
+
     const memoryText =
       memories.length > 0
         ? memories.map(m => `- ${m.content}`).join("\n")
-        : "⚠️ الذاكرة الخارجية متصلة لكنها فارغة حاليًا.";
+        : "";
 
     // ===============================
     // 2️⃣ CALL OPENAI
