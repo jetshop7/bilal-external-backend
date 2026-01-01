@@ -1,11 +1,7 @@
-
-
 /**
  * B1 MEMORY-ENFORCED GPT ENDPOINT
- * Always:
- * 1) Query external memory
- * 2) Inject memory into GPT context
- * 3) Generate final answer
+ * Phase 16 – FINAL
+ * Vercel Serverless Compatible
  */
 
 export default async function handler(req, res) {
@@ -21,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
-    return res.status(200).send("✅ /api/memory-chat is running (B1 enforced)");
+    return res.status(200).send("✅ /api/memory-chat is running (Phase 16)");
   }
 
   if (req.method !== "POST") {
@@ -33,18 +29,19 @@ export default async function handler(req, res) {
     // INPUT
     // ===============================
     const { message } = req.body;
+
     if (!message || typeof message !== "string") {
-      return res.status(400).json({ error: "Missing or invalid message" });
+      return res.status(400).json({ error: "Invalid message" });
     }
 
     // ===============================
-    // 1️⃣ RETRIEVE EXTERNAL MEMORY (REAL)
+    // 1️⃣ QUERY EXTERNAL MEMORY
     // ===============================
     let memories = [];
 
     try {
       const memoryRes = await fetch(
-        process.env.EXECUTION_LAYER_URL + "/query",
+        `${process.env.EXECUTION_LAYER_URL}/query`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -55,49 +52,23 @@ export default async function handler(req, res) {
         }
       );
 
-      const memoryData = await memoryRes.json();
-      memories = Array.isArray(memoryData?.results)
-        ? memoryData.results
+      const memoryJson = await memoryRes.json();
+      memories = Array.isArray(memoryJson?.results)
+        ? memoryJson.results
         : [];
-    } catch (memoryErr) {
-      console.error("Memory query failed:", memoryErr.message);
+    } catch {
       memories = [];
     }
 
-let memoryText;
-
-if (memories.length > 0) {
-  memoryText = memories.map(m => `- ${m.content}`).join("\n");
-} else {
-  // Fallback: load last memories (sanity check)
-  try {
-    const fallbackRes = await fetch(
-      process.env.EXECUTION_LAYER_URL + "/query",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: "",
-          limit: 5
-        })
-      }
-    );
-
-    const fallbackData = await fallbackRes.json();
-    const fallbackMemories = fallbackData?.results || [];
-
-    memoryText = fallbackMemories.length
-      ? fallbackMemories.map(m => `- ${m.content}`).join("\n")
-      : "⚠️ الذاكرة الخارجية متصلة لكنها فارغة حاليًا.";
-  } catch {
-    memoryText = "⚠️ تعذر الوصول إلى الذاكرة الخارجية.";
-  }
-}
+    const memoryText =
+      memories.length > 0
+        ? memories.map(m => `- ${m.content}`).join("\n")
+        : "⚠️ الذاكرة الخارجية متصلة لكنها فارغة حاليًا.";
 
     // ===============================
-    // 2️⃣ CALL OPENAI (CHAT COMPLETIONS – CORRECT)
+    // 2️⃣ CALL OPENAI
     // ===============================
-    const openaiResponse = await fetch(
+    const openaiRes = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
@@ -112,8 +83,7 @@ if (memories.length > 0) {
               role: "system",
               content:
                 `أنت Bilal Executive AI.\n` +
-                `يجب عليك استخدام الذاكرة الخارجية التالية قبل أي إجابة.\n\n` +
-                `🧠 الذاكرة الخارجية:\n${memoryText}`
+                `يجب استخدام الذاكرة التالية قبل أي إجابة:\n\n${memoryText}`
             },
             {
               role: "user",
@@ -124,45 +94,38 @@ if (memories.length > 0) {
       }
     );
 
-    const openaiJson = await openaiResponse.json();
+    const openaiJson = await openaiRes.json();
+
+    const finalText =
+      openaiJson?.choices?.[0]?.message?.content ||
+      "❌ لم يتم توليد رد.";
 
     // ===============================
-    // 3️⃣ EXTRACT FINAL TEXT
+    // 3️⃣ SAVE CHAT TO MEMORY
     // ===============================
-    let finalText = "❌ لم يتم توليد رد.";
+    try {
+      await fetch(`${process.env.EXECUTION_LAYER_URL}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          record: {
+            memory_type: "chat",
+            entity_type: "conversation",
+            status: "active",
+            content: message,
+            metadata: {
+              response: finalText,
+              source: "memory_chat_phase16",
+              timestamp: new Date().toISOString()
+            }
+          }
+        })
+      });
+    } catch {}
 
-    if (
-      openaiJson?.choices &&
-      openaiJson.choices[0]?.message?.content
-    ) {
-      finalText = openaiJson.choices[0].message.content;
-    }
-
-// ===============================
-// 4️⃣ AUTO-SAVE MEMORY (CHAT LOG)
-// ===============================
-try {
-  await fetch(process.env.EXECUTION_LAYER_URL + "/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      record: {
-        memory_type: "chat",
-        entity_type: "conversation",
-        status: "active",
-        content: message,
-        metadata: {
-          response: finalText,
-          source: "memory_chat_b1",
-          timestamp: new Date().toISOString()
-        }
-      }
-    })
-  });
-} catch (saveErr) {
-  console.error("Memory save failed:", saveErr.message);
-}
-
+    // ===============================
+    // RESPONSE
+    // ===============================
     return res.status(200).json({
       status: "success",
       memory_used: memories.length,
@@ -170,7 +133,6 @@ try {
     });
 
   } catch (err) {
-    console.error("Fatal error:", err);
     return res.status(500).json({
       status: "error",
       message: err.message
