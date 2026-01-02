@@ -97,6 +97,29 @@ async function getMidTermMemory(fetchFn, memoryType) {
   const json = await res.json();
   return Array.isArray(json?.results) ? json.results : [];
 }
+// ===============================
+// PHASE 20.2 — CONTROLLED CONTEXT BUILDER
+// ===============================
+function buildContextMemory({
+  shortTerm,
+  midTerm,
+  stability,
+  observationTrend
+}) {
+  let context = [...shortTerm];
+
+  const shouldExpand =
+    stability !== "stable" ||
+    observationTrend !== "stable" ||
+    shortTerm.length < 2;
+
+  if (shouldExpand && midTerm.length > 0) {
+    context = [...context, ...midTerm];
+  }
+
+  return context;
+}
+
 
 export default async function handler(req, res) {
   // ===============================
@@ -256,9 +279,17 @@ try {
     // ===============================
     // MEMORY TEXT FOR GPT
     // ===============================
-    const memoryText = shortTermMemories
+    const contextMemories = buildContextMemory({
+      shortTerm: shortTermMemories,
+      midTerm: midTermMemories,
+      stability,
+      observationTrend
+    });
+
+    const memoryText = contextMemories
       .map(m => `- ${m.content}`)
       .join("\n");
+
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -363,7 +394,7 @@ try {
     // ===============================
     return res.status(200).json({
       status: "success",
-      memory_used: shortTermMemories.length,
+      memory_used: contextMemories.length,
 
       execution_mirror_used: executionMirrorCount,
       execution_observation_score: executionObservationScore,
