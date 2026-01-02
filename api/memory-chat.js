@@ -1,6 +1,6 @@
 /**
  * B1 MEMORY-ENFORCED GPT ENDPOINT
- * Phase 16 (Closed) + Phase 17.0 Step 1
+ * Phase 16 (Closed) + Phase 17.0 (Steps 1 → 5)
  * Central Memory = Source of Truth
  * Execution Layer = Mirror Read (READ ONLY)
  */
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return res
       .status(200)
-      .send("✅ /api/memory-chat is running (Phase 17.0 – Mirror Read)");
+      .send("✅ /api/memory-chat is running (Phase 17.0)");
   }
 
   if (req.method !== "POST") {
@@ -78,22 +78,6 @@ export default async function handler(req, res) {
     // PHASE 17.0 — MIRROR READ (EXECUTION LAYER) — READ ONLY
     // ===============================
     let executionMirrorCount = 0;
-    // ===============================
-    // PHASE 17.0 — STEP 3: OBSERVATION SCORE (READ ONLY)
-    // ===============================
-    let executionObservationScore = 0;
-
-    // قاعدة بسيطة للمراقبة فقط (لا تؤثر على القرار)
-    if (executionMirrorCount >= 50) {
-      executionObservationScore = 1.0;
-    } else if (executionMirrorCount >= 20) {
-      executionObservationScore = 0.6;
-    } else if (executionMirrorCount > 0) {
-      executionObservationScore = 0.3;
-    } else {
-      executionObservationScore = 0.0;
-    }
-
 
     try {
       const execRes = await fetch(
@@ -115,6 +99,31 @@ export default async function handler(req, res) {
     } catch {
       executionMirrorCount = 0;
     }
+
+    // ===============================
+    // PHASE 17.0 — STEP 3: OBSERVATION SCORE (READ ONLY)
+    // ===============================
+    let executionObservationScore = 0;
+
+    if (executionMirrorCount >= 50) {
+      executionObservationScore = 1.0;
+    } else if (executionMirrorCount >= 20) {
+      executionObservationScore = 0.6;
+    } else if (executionMirrorCount > 0) {
+      executionObservationScore = 0.3;
+    } else {
+      executionObservationScore = 0.0;
+    }
+
+    // ===============================
+    // PHASE 17.0 — STEP 5: STABILITY GATE (READ ONLY)
+    // ===============================
+    const stability =
+      executionObservationScore === 0
+        ? "stable"
+        : executionObservationScore < 0.5
+        ? "monitor"
+        : "unstable";
 
     // ===============================
     // MEMORY TEXT FOR GPT
@@ -191,17 +200,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       status: "success",
       memory_used: memories.length,
+
       execution_mirror_used: executionMirrorCount,
       execution_observation_score: executionObservationScore,
-      // ===============================
-      // PHASE 17.0 — STEP 5: STABILITY GATE (READ ONLY)
-      // ===============================
-      const stability =
-        executionObservationScore === 0
-          ? "stable"
-          : executionObservationScore < 0.5
-          ? "monitor"
-          : "unstable";
 
       observation: {
         execution_mirror_used: executionMirrorCount,
@@ -215,10 +216,10 @@ export default async function handler(req, res) {
             ? "low_activity"
             : "no_activity"
       },
+
       stability,
       reply: finalText
     });
-
 
   } catch (err) {
     return res.status(500).json({
