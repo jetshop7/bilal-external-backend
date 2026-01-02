@@ -822,7 +822,7 @@ try {
 
       stability,
       observation_trend: observationTrend,
-      memory_policies: MEMORY_POLICIES,
+      MEMORY_POLICIES: MEMORY_POLICIES,
       policy_rules,
       policy_confidence,
       governance: {
