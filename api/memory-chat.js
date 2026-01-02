@@ -29,6 +29,20 @@ function computeLabel(executionObservationScore) {
     ? "low_activity"
     : "no_activity";
 }
+// ===============================
+// PHASE 20.1 — WRITE VALIDATION (WHITELIST)
+// ===============================
+function validateMemoryWrite(memory_type, entity_type) {
+  const validMemoryTypes = Object.values(MEMORY_TYPES);
+  const validEntityTypes = Object.values(ENTITY_TYPES);
+
+  if (!validMemoryTypes.includes(memory_type)) {
+    throw new Error(`INVALID_MEMORY_TYPE: ${memory_type}`);
+  }
+  if (!validEntityTypes.includes(entity_type)) {
+    throw new Error(`INVALID_ENTITY_TYPE: ${entity_type}`);
+  }
+}
 
 export default async function handler(req, res) {
   // ===============================
@@ -244,6 +258,10 @@ export default async function handler(req, res) {
     // 3️⃣ SAVE CHAT TO CENTRAL MEMORY
     // ===============================
     try {
+      validateMemoryWrite(
+        MEMORY_TYPES.CHAT,
+        ENTITY_TYPES.CONVERSATION
+      );
       await fetch(`${process.env.CENTRAL_MEMORY_URL}/central-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -267,6 +285,10 @@ export default async function handler(req, res) {
     // PHASE 18.0 — STEP 1: SAVE OBSERVATION SNAPSHOT (READ ONLY)
     // ===============================
     try {
+      validateMemoryWrite(
+        MEMORY_TYPES.OBSERVATION_SNAPSHOT,
+        ENTITY_TYPES.SYSTEM_HEALTH
+      );
       await fetch(`${process.env.CENTRAL_MEMORY_URL}/central-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
