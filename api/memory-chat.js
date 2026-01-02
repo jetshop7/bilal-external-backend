@@ -5,6 +5,31 @@
  * Execution Layer = Mirror Read (READ ONLY)
  */
 
+// ===============================
+// PHASE 20.1 — MEMORY STRUCTURE FINALIZATION
+// ===============================
+const MEMORY_SCHEMA_VERSION = 1;
+
+const MEMORY_TYPES = Object.freeze({
+  CHAT: "chat",
+  OBSERVATION_SNAPSHOT: "observation_snapshot"
+});
+
+const ENTITY_TYPES = Object.freeze({
+  CONVERSATION: "conversation",
+  SYSTEM_HEALTH: "system_health"
+});
+
+function computeLabel(executionObservationScore) {
+  return executionObservationScore >= 0.8
+    ? "high_activity"
+    : executionObservationScore >= 0.4
+    ? "medium_activity"
+    : executionObservationScore > 0
+    ? "low_activity"
+    : "no_activity";
+}
+
 export default async function handler(req, res) {
   // ===============================
   // CORS
@@ -49,7 +74,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            memory_type: "chat",
+            memory_type: MEMORY_TYPES.CHAT,
             limit: 5
           })
         }
@@ -124,6 +149,12 @@ export default async function handler(req, res) {
         : executionObservationScore < 0.5
         ? "monitor"
         : "unstable";
+    
+    // ===============================
+    // PHASE 20.1 — NORMALIZED LABEL (SINGLE SOURCE)
+    // ===============================
+    const label = computeLabel(executionObservationScore);
+
     // ===============================
     // PHASE 18.0 — STEP 2: OBSERVATION TREND (READ ONLY)
     // ===============================
@@ -218,13 +249,14 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           record: {
-            memory_type: "chat",
-            entity_type: "conversation",
+            memory_type: MEMORY_TYPES.CHAT,
+            entity_type: ENTITY_TYPES.CONVERSATION,
             status: "active",
             content: message,
             metadata: {
+              schema_version: MEMORY_SCHEMA_VERSION,
               response: finalText,
-              source: "memory_chat_phase17",
+              source: "memory_chat_phase20",
               saved_at: new Date().toISOString()
             }
           }
@@ -240,22 +272,16 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           record: {
-            memory_type: "observation_snapshot",
-            entity_type: "system_health",
+            memory_type: MEMORY_TYPES.OBSERVATION_SNAPSHOT,
+            entity_type: ENTITY_TYPES.SYSTEM_HEALTH,
             status: "active",
             content: "execution_observation_snapshot",
             metadata: {
+              schema_version: MEMORY_SCHEMA_VERSION,
               execution_mirror_used: executionMirrorCount,
               execution_observation_score: executionObservationScore,
               stability,
-              label:
-                executionObservationScore >= 0.8
-                  ? "high_activity"
-                  : executionObservationScore >= 0.4
-                  ? "medium_activity"
-                  : executionObservationScore > 0
-                  ? "low_activity"
-                  : "no_activity",
+              label,
               captured_at: new Date().toISOString()
             }
           }
@@ -279,13 +305,6 @@ export default async function handler(req, res) {
         execution_mirror_used: executionMirrorCount,
         execution_observation_score: executionObservationScore,
         label:
-          executionObservationScore >= 0.8
-            ? "high_activity"
-            : executionObservationScore >= 0.4
-            ? "medium_activity"
-            : executionObservationScore > 0
-            ? "low_activity"
-            : "no_activity"
       },
 
       stability,
