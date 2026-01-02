@@ -702,7 +702,7 @@ try {
         reason: dry_run_action.reason,
         confidence: policy_confidence.level,
         memoryHealth,
-        policies: memory_policies
+        policies: MEMORY_POLICIES
       });
     }
 
