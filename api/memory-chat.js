@@ -125,7 +125,11 @@ export default async function handler(req, res) {
               role: "system",
               content:
                 `أنت Bilal Executive AI.\n` +
-                `يجب استخدام الذاكرة التالية قبل أي إجابة:\n\n${memoryText}`
+                `المصدر الحتمي للقرار هو الذاكرة الخارجية (Central Memory) فقط.\n\n` +
+                `🧠 الذاكرة المعتمدة:\n${memoryText}\n\n` +
+                `📊 سياق تنفيذي (Read-Only | لا يؤثر على القرار):\n` +
+                `- execution_logs_recent_count: ${executionMirrorCount}\n` +
+                `- note: هذا السياق للمراقبة فقط ولا يُستخدم لاتخاذ القرار.`
             },
             {
               role: "user",
