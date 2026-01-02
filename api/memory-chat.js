@@ -43,6 +43,22 @@ function validateMemoryWrite(memory_type, entity_type) {
     throw new Error(`INVALID_ENTITY_TYPE: ${entity_type}`);
   }
 }
+// ===============================
+// PHASE 20.2 — QUERY NORMALIZATION
+// ===============================
+function normalizeMemoryQuery({ memory_type, limit }) {
+  const SAFE_LIMIT_MAX = 10;
+
+  return {
+    memory_type,
+    limit:
+      typeof limit === "number" && limit > 0
+        ? Math.min(limit, SAFE_LIMIT_MAX)
+        : 5,
+    order_by: "created_at",
+    order_dir: "desc"
+  };
+}
 
 export default async function handler(req, res) {
   // ===============================
@@ -87,10 +103,12 @@ export default async function handler(req, res) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            memory_type: MEMORY_TYPES.CHAT,
-            limit: 5
-          })
+          body: JSON.stringify(
+            normalizeMemoryQuery({
+              memory_type: MEMORY_TYPES.CHAT,
+              limit: 5
+            })
+          )
         }
       );
 
@@ -180,10 +198,13 @@ export default async function handler(req, res) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            memory_type: "observation_snapshot",
-            limit: 5
-          })
+          body: JSON.stringify(
+            normalizeMemoryQuery({
+              memory_type: MEMORY_TYPES.OBSERVATION_SNAPSHOT,
+              limit: 5
+            })
+          )
+
         }
       );
 
