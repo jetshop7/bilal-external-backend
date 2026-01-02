@@ -205,6 +205,7 @@ export default async function handler(req, res) {
             ? "low_activity"
             : "no_activity"
       },
+      stability,
       reply: finalText
     });
 
