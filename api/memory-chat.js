@@ -124,6 +124,44 @@ export default async function handler(req, res) {
         : executionObservationScore < 0.5
         ? "monitor"
         : "unstable";
+    // ===============================
+    // PHASE 18.0 — STEP 2: OBSERVATION TREND (READ ONLY)
+    // ===============================
+    let observationTrend = "unknown";
+
+    try {
+      const trendRes = await fetch(
+        `${process.env.CENTRAL_MEMORY_URL}/query`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memory_type: "observation_snapshot",
+            limit: 5
+          })
+        }
+      );
+
+      const trendJson = await trendRes.json();
+      const snapshots = Array.isArray(trendJson?.results)
+        ? trendJson.results
+        : [];
+
+      if (snapshots.length >= 2) {
+        const first =
+          snapshots[snapshots.length - 1]?.metadata
+            ?.execution_observation_score ?? 0;
+        const last =
+          snapshots[0]?.metadata
+            ?.execution_observation_score ?? 0;
+
+        if (last > first) observationTrend = "increasing";
+        else if (last < first) observationTrend = "decreasing";
+        else observationTrend = "stable";
+      }
+    } catch {
+      observationTrend = "unknown";
+    }
 
     // ===============================
     // MEMORY TEXT FOR GPT
@@ -251,6 +289,7 @@ export default async function handler(req, res) {
       },
 
       stability,
+      observation_trend: observationTrend,
       reply: finalText
     });
 
