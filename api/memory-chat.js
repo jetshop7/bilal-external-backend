@@ -188,6 +188,46 @@ function analyzeMemoryDrift({ shortTerm, midTerm }) {
     stagnation_risk: stagnationRisk
   };
 }
+// ===============================
+// PHASE 20.3 — MEMORY RECOMMENDATION ENGINE (READ ONLY)
+// ===============================
+function generateMemoryRecommendations({ health, drift }) {
+  const recommendations = [];
+
+  if (health.inflation_risk === "high") {
+    recommendations.push({
+      type: "inflation",
+      level: "warning",
+      message: "يُنصح بتقليل حجم السياق أو ضغط الذاكرة المتوسطة (Mid-term)."
+    });
+  }
+
+  if (health.duplicate_ratio >= 0.3) {
+    recommendations.push({
+      type: "deduplication",
+      level: "suggestion",
+      message: "يوجد تكرار ملحوظ في الذاكرة. يُنصح بدمج أو إزالة الإدخالات المتشابهة."
+    });
+  }
+
+  if (drift?.topical_drift === "high") {
+    recommendations.push({
+      type: "drift",
+      level: "warning",
+      message: "الذاكرة بدأت تنحرف عن مواضيع الاستخدام الحالي."
+    });
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      type: "health",
+      level: "ok",
+      message: "الذاكرة في حالة جيدة ولا تحتاج إلى تدخل حاليًا."
+    });
+  }
+
+  return recommendations;
+}
 
 
 export default async function handler(req, res) {
@@ -373,6 +413,13 @@ try {
       shortTerm: shortTermMemories,
       midTerm: midTermMemories
     });
+    // ===============================
+    // PHASE 20.3 — MEMORY RECOMMENDATIONS (READ ONLY)
+    // ===============================
+    const memoryRecommendations = generateMemoryRecommendations({
+      health: memoryHealth,
+      drift: memoryDrift
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -492,6 +539,7 @@ try {
       observation_trend: observationTrend,
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
+      memory_recommendations: memoryRecommendations,
       reply: finalText
     });
 
