@@ -14,6 +14,34 @@ const MEMORY_TYPES = Object.freeze({
   CHAT: "chat",
   OBSERVATION_SNAPSHOT: "observation_snapshot"
 });
+// ===============================
+// PHASE 20.4 — MEMORY POLICIES (BALANCED · READ ONLY)
+// ===============================
+const MEMORY_POLICIES = Object.freeze({
+  mode: "balanced",
+
+  safe_auto_actions: [
+    "summarize_mid_term",
+    "merge_exact_duplicates",
+    "reduce_context_window",
+    "reorder_priority"
+  ],
+
+  auth_required_actions: [
+    "delete_memory",
+    "merge_similar_analysis",
+    "reclassify_memory",
+    "drop_old_entries"
+  ],
+
+  forbidden_actions: [
+    "delete_strategic_intelligence",
+    "delete_financial_history",
+    "modify_decision_records",
+    "cleanup_without_trace"
+  ]
+});
+
 
 const ENTITY_TYPES = Object.freeze({
   CONVERSATION: "conversation",
@@ -537,6 +565,7 @@ try {
 
       stability,
       observation_trend: observationTrend,
+      memory_policies: MEMORY_POLICIES,
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
       memory_recommendations: memoryRecommendations,
