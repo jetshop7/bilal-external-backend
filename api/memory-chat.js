@@ -15,6 +15,15 @@ const MEMORY_TYPES = Object.freeze({
   OBSERVATION_SNAPSHOT: "observation_snapshot"
 });
 // ===============================
+// PHASE 21.0 — AUTO MEMORY GOVERNANCE (PILOT MODE) — STEP 1
+// Kill Switch + One-Action Guard + Execution Gate (NO execution yet)
+// ===============================
+const AUTO_MEMORY_GOVERNANCE = Object.freeze({
+  enabled: String(process.env.AUTO_MEMORY_GOVERNANCE || "false") === "true", // Kill Switch
+  one_action_per_request: true, // always true in Pilot
+});
+
+// ===============================
 // PHASE 20.4 — MEMORY POLICIES (BALANCED · READ ONLY)
 // ===============================
 const MEMORY_POLICIES = Object.freeze({
@@ -130,6 +139,45 @@ function evaluatePolicyConfidence({ health, drift }) {
     level: "medium",
     explanation:
       "المؤشرات واضحة لكن غير حرجة، يُنصح باقتراحات محسوبة فقط."
+  };
+}
+// ===============================
+// PHASE 21.0 — EXECUTION GATE (STEP 1) — READ/DECIDE ONLY
+// ===============================
+function evaluateGovernanceGate({ policyConfidence, governanceConfig }) {
+  // Kill Switch OFF => never allow
+  if (!governanceConfig.enabled) {
+    return {
+      allowed: false,
+      reason: "KILL_SWITCH_OFF",
+      selected_action: null
+    };
+  }
+
+  // One-action guard (Pilot rule)
+  if (!governanceConfig.one_action_per_request) {
+    return {
+      allowed: false,
+      reason: "ONE_ACTION_GUARD_DISABLED",
+      selected_action: null
+    };
+  }
+
+  // Confidence gate
+  const level = policyConfidence?.level || "low";
+  if (level === "low") {
+    return {
+      allowed: false,
+      reason: "CONFIDENCE_LOW",
+      selected_action: null
+    };
+  }
+
+  // Allowed in Pilot (but we still won't execute in Step 1)
+  return {
+    allowed: true,
+    reason: level === "high" ? "CONFIDENCE_HIGH" : "CONFIDENCE_MEDIUM",
+    selected_action: null
   };
 }
 
@@ -553,6 +601,13 @@ try {
       health: memoryHealth,
       drift: memoryDrift
     });
+    // ===============================
+    // PHASE 21.0 — GOVERNANCE GATE RESULT (STEP 1) — NO execution
+    // ===============================
+    const governance_gate = evaluateGovernanceGate({
+      policyConfidence: policy_confidence,
+      governanceConfig: AUTO_MEMORY_GOVERNANCE
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -673,6 +728,12 @@ try {
       memory_policies: MEMORY_POLICIES,
       policy_rules,
       policy_confidence,
+      governance: {
+        pilot_mode: true,
+        kill_switch_enabled: AUTO_MEMORY_GOVERNANCE.enabled,
+        one_action_per_request: AUTO_MEMORY_GOVERNANCE.one_action_per_request,
+        gate: governance_gate
+      },
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
       memory_recommendations: memoryRecommendations,
