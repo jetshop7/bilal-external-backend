@@ -97,6 +97,41 @@ function mapPolicyRules({ health, drift, policies }) {
 
   return rules;
 }
+// ===============================
+// PHASE 20.4 — POLICY CONFIDENCE EVALUATOR (3 LEVELS · READ ONLY)
+// ===============================
+function evaluatePolicyConfidence({ health, drift }) {
+  // LOW confidence
+  if (
+    health.inflation_risk !== "high" &&
+    health.duplicate_ratio < 0.25
+  ) {
+    return {
+      level: "low",
+      explanation:
+        "المؤشرات ضعيفة أو أولية، لا يُنصح بأي اقتراح فعلي حاليًا."
+    };
+  }
+
+  // HIGH confidence
+  if (
+    health.inflation_risk === "high" &&
+    health.duplicate_ratio >= 0.5
+  ) {
+    return {
+      level: "high",
+      explanation:
+        "المؤشرات قوية جدًا، ويمكن لاحقًا التفكير في اقتراحات قوية أو طلب تفويض."
+    };
+  }
+
+  // MEDIUM confidence (default)
+  return {
+    level: "medium",
+    explanation:
+      "المؤشرات واضحة لكن غير حرجة، يُنصح باقتراحات محسوبة فقط."
+  };
+}
 
 const ENTITY_TYPES = Object.freeze({
   CONVERSATION: "conversation",
@@ -511,6 +546,13 @@ try {
       drift: memoryDrift,
       policies: MEMORY_POLICIES
     });
+    // ===============================
+    // PHASE 20.4 — POLICY CONFIDENCE LEVEL (READ ONLY)
+    // ===============================
+    const policy_confidence = evaluatePolicyConfidence({
+      health: memoryHealth,
+      drift: memoryDrift
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -630,6 +672,7 @@ try {
       observation_trend: observationTrend,
       memory_policies: MEMORY_POLICIES,
       policy_rules,
+      policy_confidence,
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
       memory_recommendations: memoryRecommendations,
