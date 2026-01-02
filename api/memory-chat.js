@@ -42,6 +42,61 @@ const MEMORY_POLICIES = Object.freeze({
   ]
 });
 
+// ===============================
+// PHASE 20.4 — POLICY RULES MAPPING (READ ONLY)
+// ===============================
+function mapPolicyRules({ health, drift, policies }) {
+  const rules = [];
+
+  // Rule: Inflation
+  if (health.inflation_risk === "high") {
+    rules.push({
+      when: "inflation_risk = high",
+      allow: policies.safe_auto_actions.includes("summarize_mid_term")
+        ? ["suggest_summarize_mid_term"]
+        : [],
+      deny: ["delete_memory"],
+      explanation:
+        "عند ارتفاع خطر التضخم، يُسمح باقتراح ضغط الذاكرة المتوسطة فقط دون حذف."
+    });
+  }
+
+  // Rule: Duplication
+  if (health.duplicate_ratio >= 0.25) {
+    rules.push({
+      when: "duplicate_ratio >= 0.25",
+      allow: policies.safe_auto_actions.includes("merge_exact_duplicates")
+        ? ["suggest_merge_exact_duplicates"]
+        : [],
+      deny: ["merge_similar_analysis"],
+      explanation:
+        "عند وجود تكرار ملحوظ، يُسمح باقتراح دمج المتطابق حرفيًا فقط، ويُمنع دمج التحليلات المتشابهة."
+    });
+  }
+
+  // Rule: Drift
+  if (drift?.topical_drift === "high") {
+    rules.push({
+      when: "topical_drift = high",
+      allow: ["suggest_review_context"],
+      deny: ["cleanup_without_trace"],
+      explanation:
+        "عند وجود انحراف موضوعي مرتفع، يُقترح مراجعة السياق دون أي تنظيف تلقائي."
+    });
+  }
+
+  // Default rule
+  if (rules.length === 0) {
+    rules.push({
+      when: "system_normal",
+      allow: [],
+      deny: [],
+      explanation: "النظام في حالة طبيعية ولا يُقترح أي إجراء."
+    });
+  }
+
+  return rules;
+}
 
 const ENTITY_TYPES = Object.freeze({
   CONVERSATION: "conversation",
@@ -448,6 +503,14 @@ try {
       health: memoryHealth,
       drift: memoryDrift
     });
+    // ===============================
+    // PHASE 20.4 — POLICY RULES EVALUATION (READ ONLY)
+    // ===============================
+    const policy_rules = mapPolicyRules({
+      health: memoryHealth,
+      drift: memoryDrift,
+      policies: MEMORY_POLICIES
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -566,6 +629,7 @@ try {
       stability,
       observation_trend: observationTrend,
       memory_policies: MEMORY_POLICIES,
+      policy_rules,
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
       memory_recommendations: memoryRecommendations,
