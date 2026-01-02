@@ -193,6 +193,39 @@ export default async function handler(req, res) {
         })
       });
     } catch {}
+    // ===============================
+    // PHASE 18.0 — STEP 1: SAVE OBSERVATION SNAPSHOT (READ ONLY)
+    // ===============================
+    try {
+      await fetch(`${process.env.CENTRAL_MEMORY_URL}/central-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          record: {
+            memory_type: "observation_snapshot",
+            entity_type: "system_health",
+            status: "active",
+            content: "execution_observation_snapshot",
+            metadata: {
+              execution_mirror_used: executionMirrorCount,
+              execution_observation_score: executionObservationScore,
+              stability,
+              label:
+                executionObservationScore >= 0.8
+                  ? "high_activity"
+                  : executionObservationScore >= 0.4
+                  ? "medium_activity"
+                  : executionObservationScore > 0
+                  ? "low_activity"
+                  : "no_activity",
+              captured_at: new Date().toISOString()
+            }
+          }
+        })
+      });
+    } catch {
+      // silent — observation must never block
+    }
 
     // ===============================
     // RESPONSE
