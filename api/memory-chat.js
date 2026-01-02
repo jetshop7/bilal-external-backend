@@ -151,6 +151,43 @@ function analyzeMemoryHealth({ shortTerm, midTerm, context }) {
     inflation_risk: inflationRisk
   };
 }
+// ===============================
+// PHASE 20.3 — MEMORY DRIFT ANALYZER
+// ===============================
+function analyzeMemoryDrift({ shortTerm, midTerm }) {
+  const normalize = text =>
+    text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+  // كلمات السياق الفوري
+  const shortTokens = shortTerm.flatMap(m => normalize(m.content));
+
+  // كلمات السياق المتوسط
+  const midTokens = midTerm.flatMap(m => normalize(m.content));
+
+  const shortSet = new Set(shortTokens);
+  const midSet = new Set(midTokens);
+
+  // تقاطع المفردات
+  const intersection = [...shortSet].filter(t => midSet.has(t));
+  const overlapRatio =
+    shortSet.size > 0
+      ? Number((intersection.length / shortSet.size).toFixed(2))
+      : 0;
+
+  // مؤشرات الانحراف
+  const topicalDrift = overlapRatio < 0.2 ? "high" : overlapRatio < 0.5 ? "medium" : "low";
+  const stagnationRisk = shortSet.size < 5 && midSet.size > 20 ? "high" : "low";
+
+  return {
+    overlap_ratio: overlapRatio,
+    topical_drift: topicalDrift,
+    stagnation_risk: stagnationRisk
+  };
+}
 
 
 export default async function handler(req, res) {
@@ -329,6 +366,13 @@ try {
       midTerm: midTermMemories,
       context: contextMemories
     });
+    // ===============================
+    // PHASE 20.3 — MEMORY DRIFT SNAPSHOT (READ ONLY)
+    // ===============================
+    const memoryDrift = analyzeMemoryDrift({
+      shortTerm: shortTermMemories,
+      midTerm: midTermMemories
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -447,6 +491,7 @@ try {
       stability,
       observation_trend: observationTrend,
       memory_health: memoryHealth,
+      memory_drift: memoryDrift,
       reply: finalText
     });
 
