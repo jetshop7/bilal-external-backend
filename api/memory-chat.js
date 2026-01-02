@@ -214,11 +214,53 @@ function selectSafeActionDryRun({ health, rules, confidence }) {
     reason: "NO_SAFE_ACTION_MATCHED"
   };
 }
+// ===============================
+// PHASE 21.0 — DECISION LOGGER (DRY-RUN ONLY)
+// ===============================
+async function logDecisionDryRun({
+  centralMemoryUrl,
+  decision,
+  reason,
+  confidence,
+  memoryHealth,
+  policies
+}) {
+  try {
+    await fetch(`${centralMemoryUrl}/central-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        record: {
+          memory_type: DECISION_LOG_TYPE,
+          entity_type: DECISION_ENTITY,
+          status: "active",
+          content: "auto_governance_decision",
+          metadata: {
+            mode: "dry_run",
+            selected_action: decision,
+            reason,
+            policy_confidence: confidence,
+            memory_health_snapshot: memoryHealth,
+            applied_policies: policies.mode,
+            recorded_at: new Date().toISOString()
+          }
+        }
+      })
+    });
+  } catch {
+    // Silent by design — decision logging must never block
+  }
+}
 
 const ENTITY_TYPES = Object.freeze({
   CONVERSATION: "conversation",
   SYSTEM_HEALTH: "system_health"
 });
+// ===============================
+// PHASE 21.0 — DECISION LOG TYPES
+// ===============================
+const DECISION_LOG_TYPE = "decision_log";
+const DECISION_ENTITY = "auto_governance";
 
 function computeLabel(executionObservationScore) {
   return executionObservationScore >= 0.8
@@ -650,6 +692,19 @@ try {
       rules: policy_rules,
       confidence: policy_confidence
     });
+    // ===============================
+    // PHASE 21.0 — LOG DRY-RUN DECISION (STEP 3)
+    // ===============================
+    if (dry_run_action?.selected_action) {
+      await logDecisionDryRun({
+        centralMemoryUrl: process.env.CENTRAL_MEMORY_URL,
+        decision: dry_run_action.selected_action,
+        reason: dry_run_action.reason,
+        confidence: policy_confidence.level,
+        memoryHealth,
+        policies: memory_policies
+      });
+    }
 
     // ===============================
     // 2️⃣ CALL OPENAI
