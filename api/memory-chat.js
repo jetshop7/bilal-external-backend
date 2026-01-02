@@ -193,6 +193,18 @@ export default async function handler(req, res) {
       memory_used: memories.length,
       execution_mirror_used: executionMirrorCount,
       execution_observation_score: executionObservationScore,
+      observation: {
+        execution_mirror_used: executionMirrorCount,
+        execution_observation_score: executionObservationScore,
+        label:
+          executionObservationScore >= 0.8
+            ? "high_activity"
+            : executionObservationScore >= 0.4
+            ? "medium_activity"
+            : executionObservationScore > 0
+            ? "low_activity"
+            : "no_activity"
+      },
       reply: finalText
     });
 
