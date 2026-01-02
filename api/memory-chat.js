@@ -193,6 +193,16 @@ export default async function handler(req, res) {
       memory_used: memories.length,
       execution_mirror_used: executionMirrorCount,
       execution_observation_score: executionObservationScore,
+      // ===============================
+      // PHASE 17.0 — STEP 5: STABILITY GATE (READ ONLY)
+      // ===============================
+      const stability =
+        executionObservationScore === 0
+          ? "stable"
+          : executionObservationScore < 0.5
+          ? "monitor"
+          : "unstable";
+
       observation: {
         execution_mirror_used: executionMirrorCount,
         execution_observation_score: executionObservationScore,
