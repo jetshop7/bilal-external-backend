@@ -119,6 +119,38 @@ function buildContextMemory({
 
   return context;
 }
+// ===============================
+// PHASE 20.3 — MEMORY HEALTH ANALYZER
+// ===============================
+function analyzeMemoryHealth({ shortTerm, midTerm, context }) {
+  const shortCount = shortTerm.length;
+  const midCount = midTerm.length;
+  const contextCount = context.length;
+
+  // حساب التكرار حسب content
+  const contents = context.map(m => m.content);
+  const uniqueCount = new Set(contents).size;
+  const duplicateRatio =
+    contextCount > 0
+      ? Number(((contextCount - uniqueCount) / contextCount).toFixed(2))
+      : 0;
+
+  // مؤشر تضخم السياق (بسيط ومتحفظ)
+  const inflationRisk =
+    contextCount >= 8
+      ? "high"
+      : contextCount >= 5
+      ? "medium"
+      : "low";
+
+  return {
+    short_term_size: shortCount,
+    mid_term_size: midCount,
+    context_size: contextCount,
+    duplicate_ratio: duplicateRatio,
+    inflation_risk: inflationRisk
+  };
+}
 
 
 export default async function handler(req, res) {
@@ -289,7 +321,14 @@ try {
     const memoryText = contextMemories
       .map(m => `- ${m.content}`)
       .join("\n");
-
+    // ===============================
+    // PHASE 20.3 — MEMORY HEALTH SNAPSHOT (READ ONLY)
+    // ===============================
+    const memoryHealth = analyzeMemoryHealth({
+      shortTerm: shortTermMemories,
+      midTerm: midTermMemories,
+      context: contextMemories
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -407,6 +446,7 @@ try {
 
       stability,
       observation_trend: observationTrend,
+      memory_health: memoryHealth,
       reply: finalText
     });
 
