@@ -180,6 +180,40 @@ function evaluateGovernanceGate({ policyConfidence, governanceConfig }) {
     selected_action: null
   };
 }
+// ===============================
+// PHASE 21.0 — SAFE ACTION SELECTOR (STEP 2 · DRY-RUN)
+// ===============================
+function selectSafeActionDryRun({ health, rules, confidence }) {
+  // Gate: only medium or high confidence
+  if (!confidence || confidence.level === "low") {
+    return {
+      selected_action: null,
+      reason: "CONFIDENCE_TOO_LOW"
+    };
+  }
+
+  // Priority 1: Inflation
+  if (health.inflation_risk === "high") {
+    return {
+      selected_action: "summarize_mid_term",
+      reason: "inflation_risk_high"
+    };
+  }
+
+  // Priority 2: Duplication
+  if (health.duplicate_ratio >= 0.25) {
+    return {
+      selected_action: "merge_exact_duplicates",
+      reason: "duplicate_ratio_high"
+    };
+  }
+
+  // Default
+  return {
+    selected_action: null,
+    reason: "NO_SAFE_ACTION_MATCHED"
+  };
+}
 
 const ENTITY_TYPES = Object.freeze({
   CONVERSATION: "conversation",
@@ -608,6 +642,14 @@ try {
       policyConfidence: policy_confidence,
       governanceConfig: AUTO_MEMORY_GOVERNANCE
     });
+    // ===============================
+    // PHASE 21.0 — DRY-RUN ACTION DECISION (STEP 2)
+    // ===============================
+    const dry_run_action = selectSafeActionDryRun({
+      health: memoryHealth,
+      rules: policy_rules,
+      confidence: policy_confidence
+    });
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -732,8 +774,14 @@ try {
         pilot_mode: true,
         kill_switch_enabled: AUTO_MEMORY_GOVERNANCE.enabled,
         one_action_per_request: AUTO_MEMORY_GOVERNANCE.one_action_per_request,
-        gate: governance_gate
+        gate: governance_gate,
+        dry_run: {
+          enabled: true,
+          selected_action: dry_run_action.selected_action,
+          reason: dry_run_action.reason
+        }
       },
+
       memory_health: memoryHealth,
       memory_drift: memoryDrift,
       memory_recommendations: memoryRecommendations,
