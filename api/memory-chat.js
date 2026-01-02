@@ -196,6 +196,7 @@ export default async function handler(req, res) {
       reply: finalText
     });
 
+
   } catch (err) {
     return res.status(500).json({
       status: "error",
