@@ -304,7 +304,7 @@ export default async function handler(req, res) {
       observation: {
         execution_mirror_used: executionMirrorCount,
         execution_observation_score: executionObservationScore,
-        label:
+        label
       },
 
       stability,
