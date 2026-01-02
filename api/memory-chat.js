@@ -59,6 +59,44 @@ function normalizeMemoryQuery({ memory_type, limit }) {
     order_dir: "desc"
   };
 }
+// ===============================
+// PHASE 20.2 — MEMORY WINDOWING HELPERS
+// ===============================
+async function getShortTermMemory(fetchFn, memoryType) {
+  const res = await fetchFn(
+    `${process.env.CENTRAL_MEMORY_URL}/query`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        normalizeMemoryQuery({
+          memory_type: memoryType,
+          limit: 3
+        })
+      )
+    }
+  );
+  const json = await res.json();
+  return Array.isArray(json?.results) ? json.results : [];
+}
+
+async function getMidTermMemory(fetchFn, memoryType) {
+  const res = await fetchFn(
+    `${process.env.CENTRAL_MEMORY_URL}/query`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        normalizeMemoryQuery({
+          memory_type: memoryType,
+          limit: 10
+        })
+      )
+    }
+  );
+  const json = await res.json();
+  return Array.isArray(json?.results) ? json.results : [];
+}
 
 export default async function handler(req, res) {
   // ===============================
@@ -92,38 +130,24 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid message" });
     }
 
-    // ===============================
-    // 1️⃣ QUERY CENTRAL MEMORY (SOURCE OF TRUTH)
-    // ===============================
-    let memories = [];
+    // ===============================// ===============================
+// 1️⃣ QUERY CENTRAL MEMORY — SHORT TERM (SOURCE OF TRUTH)
+// ===============================
+let shortTermMemories = [];
+let midTermMemories = [];
 
-    try {
-      const memoryRes = await fetch(
-        `${process.env.CENTRAL_MEMORY_URL}/query`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            normalizeMemoryQuery({
-              memory_type: MEMORY_TYPES.CHAT,
-              limit: 5
-            })
-          )
-        }
-      );
-
-      const memoryJson = await memoryRes.json();
-      memories = Array.isArray(memoryJson?.results)
-        ? memoryJson.results
-        : [];
-    } catch {
-      memories = [];
-    }
+try {
+  shortTermMemories = await getShortTermMemory(fetch, MEMORY_TYPES.CHAT);
+  midTermMemories = await getMidTermMemory(fetch, MEMORY_TYPES.CHAT);
+} catch {
+  shortTermMemories = [];
+  midTermMemories = [];
+}
 
     // ===============================
     // PHASE 16.2 — HARD MEMORY GUARD
     // ===============================
-    if (!memories || memories.length === 0) {
+    if (!shortTermMemories || shortTermMemories.length === 0) {
       return res.status(412).json({
         status: "blocked",
         reason: "NO_EXTERNAL_MEMORY",
@@ -232,7 +256,7 @@ export default async function handler(req, res) {
     // ===============================
     // MEMORY TEXT FOR GPT
     // ===============================
-    const memoryText = memories
+    const memoryText = shortTermMemories
       .map(m => `- ${m.content}`)
       .join("\n");
 
@@ -339,7 +363,7 @@ export default async function handler(req, res) {
     // ===============================
     return res.status(200).json({
       status: "success",
-      memory_used: memories.length,
+      memory_used: shortTermMemories.length,
 
       execution_mirror_used: executionMirrorCount,
       execution_observation_score: executionObservationScore,
