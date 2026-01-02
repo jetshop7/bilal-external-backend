@@ -78,6 +78,22 @@ export default async function handler(req, res) {
     // PHASE 17.0 — MIRROR READ (EXECUTION LAYER) — READ ONLY
     // ===============================
     let executionMirrorCount = 0;
+    // ===============================
+    // PHASE 17.0 — STEP 3: OBSERVATION SCORE (READ ONLY)
+    // ===============================
+    let executionObservationScore = 0;
+
+    // قاعدة بسيطة للمراقبة فقط (لا تؤثر على القرار)
+    if (executionMirrorCount >= 50) {
+      executionObservationScore = 1.0;
+    } else if (executionMirrorCount >= 20) {
+      executionObservationScore = 0.6;
+    } else if (executionMirrorCount > 0) {
+      executionObservationScore = 0.3;
+    } else {
+      executionObservationScore = 0.0;
+    }
+
 
     try {
       const execRes = await fetch(
@@ -176,6 +192,7 @@ export default async function handler(req, res) {
       status: "success",
       memory_used: memories.length,
       execution_mirror_used: executionMirrorCount,
+      execution_observation_score: executionObservationScore,
       reply: finalText
     });
 
