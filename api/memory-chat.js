@@ -1,7 +1,8 @@
 /**
  * B1 MEMORY-ENFORCED GPT ENDPOINT
- * Phase 16 – FINAL (Central Memory ONLY)
- * Vercel Serverless Compatible
+ * Phase 16 (Closed) + Phase 17.0 Step 1
+ * Central Memory = Source of Truth
+ * Execution Layer = Mirror Read (READ ONLY)
  */
 
 export default async function handler(req, res) {
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return res
       .status(200)
-      .send("✅ /api/memory-chat is running (Phase 16 – Central Memory)");
+      .send("✅ /api/memory-chat is running (Phase 17.0 – Mirror Read)");
   }
 
   if (req.method !== "POST") {
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
     }
 
     // ===============================
-    // 1️⃣ QUERY CENTRAL MEMORY
+    // 1️⃣ QUERY CENTRAL MEMORY (SOURCE OF TRUTH)
     // ===============================
     let memories = [];
 
@@ -73,10 +74,38 @@ export default async function handler(req, res) {
       });
     }
 
-    const memoryText =
-      memories.length > 0
-        ? memories.map(m => `- ${m.content}`).join("\n")
-        : "";
+    // ===============================
+    // PHASE 17.0 — MIRROR READ (EXECUTION LAYER) — READ ONLY
+    // ===============================
+    let executionMirrorCount = 0;
+
+    try {
+      const execRes = await fetch(
+        `${process.env.EXECUTION_LAYER_URL}/query`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memory_type: "execution_log",
+            limit: 3
+          })
+        }
+      );
+
+      const execJson = await execRes.json();
+      if (Array.isArray(execJson?.results)) {
+        executionMirrorCount = execJson.results.length;
+      }
+    } catch {
+      executionMirrorCount = 0;
+    }
+
+    // ===============================
+    // MEMORY TEXT FOR GPT
+    // ===============================
+    const memoryText = memories
+      .map(m => `- ${m.content}`)
+      .join("\n");
 
     // ===============================
     // 2️⃣ CALL OPENAI
@@ -128,7 +157,7 @@ export default async function handler(req, res) {
             content: message,
             metadata: {
               response: finalText,
-              source: "memory_chat_phase16",
+              source: "memory_chat_phase17",
               saved_at: new Date().toISOString()
             }
           }
@@ -142,8 +171,10 @@ export default async function handler(req, res) {
     return res.status(200).json({
       status: "success",
       memory_used: memories.length,
+      execution_mirror_used: executionMirrorCount,
       reply: finalText
     });
+
   } catch (err) {
     return res.status(500).json({
       status: "error",
